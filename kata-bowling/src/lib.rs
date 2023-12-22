@@ -1,13 +1,5 @@
-// The game consists of 10 frames
-// The score for the frame is the total number of pins knocked down, plus bonuses for strikes and spares.:
-// - open frame: the score is the number of pins knocked down
-// - A spare is when the player knocks down all 10 pins in two rolls. The bonus for that frame is the number of pins knocked down by the next roll.
-// - A strike is when the player knocks down all 10 pins on his first roll. The frame is then completed with a single roll. The bonus for that frame is the value of the next two rolls.
-// - In the tenth frame a player who rolls a spare or strike is allowed to roll the extra balls to complete the frame. However no more than three balls can be rolled in tenth frame.
-// TODO test from outside so i can test how this game would be used
 struct Game {
-    frames: Vec<(Option<u8>, Option<u8>)>,
-    extra_frames: [u8; 3],
+    frames: Vec<(u8, Option<u8>)>,
     score: usize,
 }
 
@@ -15,20 +7,28 @@ impl Game {
     fn new() -> Self {
         Game {
             frames: Vec::new(),
-            extra_frames: [0; 3],
             score: 0,
         }
     }
-    fn add_frame(&mut self, pins: u8) {
+    fn add_frame(&mut self, pins: u8) -> Result<(), &'static str> {
+        if self.frames.len() > 10 {
+            self.frames.push((pins, None));
+            return Ok(());
+        }
+
         match self.frames.last_mut() {
             // TODO refactor create fn if second open
-            Some((first, second)) if *first != Some(10) && second.is_none() => {
+            Some((first, second)) if *first != 10 && second.is_none() => {
+                if *first + pins > 10 {
+                    return Err("Movement not allowed");
+                }
                 *second = Some(pins);
             }
             _ => {
-                self.frames.push((Some(pins), None));
+                self.frames.push((pins, None));
             }
         }
+        Ok(())
     }
 
     fn update_score(&mut self, pins: u8) {
@@ -41,22 +41,22 @@ impl Game {
         for window in self.frames.windows(window_size) {
             match window {
                 [prev_prev_frame, prev_frame, frame] => {
-                    if prev_prev_frame.0 == Some(10) {
+                    if prev_prev_frame.0 == 10 {
                         // there was a strike two frames ago
-                        self.score += frame.0.unwrap() as usize
+                        self.score += frame.0 as usize
                             + frame.1.unwrap_or(0) as usize
-                            + prev_frame.0.unwrap() as usize
+                            + prev_frame.0 as usize
                             + prev_frame.1.unwrap_or(0) as usize;
                     }
-                    if prev_frame.0.unwrap() + prev_frame.1.unwrap_or(0) == 10 {
+                    if prev_frame.0 + prev_frame.1.unwrap_or(0) == 10 {
                         // there was a spare in the previous frame
-                        self.score += frame.0.unwrap() as usize + frame.1.unwrap_or(0) as usize
+                        self.score += frame.0 as usize + frame.1.unwrap_or(0) as usize
                     }
                 }
                 [prev_frame, frame] => {
-                    if prev_frame.0.unwrap() + prev_frame.1.unwrap_or(0) == 10 {
+                    if prev_frame.0 + prev_frame.1.unwrap_or(0) == 10 {
                         // there was a spare in the previous frame
-                        self.score += frame.0.unwrap() as usize + frame.1.unwrap_or(0) as usize
+                        self.score += frame.0 as usize + frame.1.unwrap_or(0) as usize
                     }
                 }
                 _ => {}
@@ -64,39 +64,53 @@ impl Game {
         }
     }
 
-    fn is_spare(&self) -> bool {
-        // no es 10 pero es 10 con el anterior
-        true
+    fn roll(&mut self, pins: u8) -> Result<(), &'static str> {
+        if self.game_is_over() {
+            return Err("Game is over");
+        }
+
+        self.add_frame(pins)?;
+        self.update_score(pins);
+
+        Ok(())
     }
 
-    fn is_strike(&self) -> bool {
-        true
-        // es 10
+    fn is_last_done(&self) -> bool {
+        self.frames.last().unwrap().1.is_some()
+    }
+
+    fn game_is_over(&self) -> bool {
+        let last_frame = self.frames.last();
+        if self.frames.len() == 10
+            && !is_strike(last_frame)
+            && !is_spare(last_frame)
+            && self.is_last_done()
+        {
+            return true;
+        } else if self.frames.len() == 11 && !is_strike(self.frames.get(9)) {
+            return true;
+        } else if self.frames.len() == 12 {
+            return true;
+        }
+        self.frames.len() == 12
     }
 
     fn is_last_frame(&self) -> bool {
         self.frames.len() == 10
     }
+}
 
-    fn roll(&mut self, pins: u8) -> Result<(), &'static str> {
-        // TODO add AND there is no extra frame
-        if self.is_last_frame() {
-            return Err("Game is over");
-        }
+fn is_spare(frame: Option<&(u8, Option<u8>)>) -> bool {
+    !is_strike(frame) && frame.unwrap().0 + frame.unwrap().1.unwrap_or(0) == 10
+}
 
-        self.add_frame(pins);
-        self.update_score(pins);
-
-        Ok(())
-    }
+fn is_strike(frame: Option<&(u8, Option<u8>)>) -> bool {
+    frame.unwrap().0 == 10
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // TODO mod for the game
-    // TODO use smt similar to beforeEach
 
     #[test]
     fn initial_game_state() {
@@ -106,66 +120,105 @@ mod tests {
     }
 
     #[test]
-    fn after_valid_sparse_command_roll_frame_left_decreases() {
+    fn frames_are_increased_after_first_open() {
+        let mut game = Game::new();
+        assert_eq!(0, game.frames.len());
+        game.roll(5).unwrap();
+        assert_eq!(1, game.frames.len());
+        assert_eq!(game.is_last_done(), false);
+    }
+
+    #[test]
+    fn frames_are_not_increased_after_spare() {
         let mut game = Game::new();
         game.roll(5).unwrap();
+        assert_eq!(1, game.frames.len());
         game.roll(5).unwrap();
         assert_eq!(1, game.frames.len());
     }
 
     #[test]
-    fn after_valid_strike_command_roll_frame_left_decreases() {
+    fn frames_are_increased_after_strike() {
         let mut game = Game::new();
+        assert_eq!(0, game.frames.len());
         game.roll(10).unwrap();
         assert_eq!(1, game.frames.len());
     }
 
     #[test]
-    fn after_valid_second_open_command_roll_frame_left_decreases() {
+    // TODO move this test to integration test outside
+    fn second_attempt_cannot_sum_more_than_10() {
         let mut game = Game::new();
         game.roll(5).unwrap();
-        game.roll(3).unwrap();
-        assert_eq!(1, game.frames.len());
+        assert_eq!(game.roll(6), Err("Movement not allowed"));
     }
 
     #[test]
-    fn when_frame_left_is_zero_roll_returns_an_error() {
+    fn when_first_attempt_is_10_is_strike() {
+        let mut game = Game::new();
+        game.roll(10).unwrap();
+        assert_eq!(is_strike(game.frames.last()), true);
+        assert_eq!(is_spare(game.frames.last()), false);
+    }
+
+    #[test]
+    fn when_second_attempt_sums_10_is_spare() {
+        let mut game = Game::new();
+        game.roll(1).unwrap();
+        game.roll(9).unwrap();
+        assert_eq!(is_strike(game.frames.last()), false);
+        assert_eq!(is_spare(game.frames.last()), true);
+    }
+
+    #[test]
+    // TODO move this test to integration test outside
+    fn after_10_opens_game_is_over() {
         let mut game = Game::new();
         for _ in 0..10 {
-            let _ = game.roll(10);
+            game.roll(0).unwrap();
+            game.roll(0).unwrap();
         }
         assert_eq!(game.roll(10), Err("Game is over"));
     }
 
     #[test]
-    fn after_open_frame_score_is_the_number_of_pins_knocked_down() {
+    // TODO move this test to integration test outside
+    fn when_last_attempt_is_spare_you_gain_one_more_shot() {
+        let mut game = Game::new();
+        for _ in 0..9 {
+            game.roll(0).unwrap();
+            game.roll(0).unwrap();
+        }
+        game.roll(5).unwrap();
+        game.roll(5).unwrap(); // spare // TODO wrap this func and the following as strike and spare as helper fn
+        game.roll(5).unwrap(); // one more shot
+        assert_eq!(game.roll(0), Err("Game is over"));
+    }
+
+    #[test]
+    // TODO move this test to integration test outside
+    fn when_last_attempt_is_strike_you_gain_two_more_shots() {
+        let mut game = Game::new();
+        for _ in 0..9 {
+            game.roll(0).unwrap();
+            game.roll(0).unwrap();
+        }
+        game.roll(10).unwrap(); // strike
+        game.roll(1).unwrap(); // one more shot
+        game.roll(5).unwrap(); // one more shot
+        assert_eq!(game.roll(10), Err("Game is over"));
+    }
+
+    #[test]
+    // TODO move this test to integration test outside
+    fn after_open_frame_score_is_the_number_of_pins() {
         let mut game = Game::new();
         game.roll(5).unwrap();
         assert_eq!(5, game.score);
-        assert_eq!(1, game.frames.len()); // TODO no se si deberia testear esto todo el rato
     }
 
     #[test]
-    fn after_first_open_command_frames_left_does_not_decrease() {
-        let mut game = Game::new();
-        game.roll(5).unwrap();
-    }
-
-    #[test]
-    fn spare_command_is_only_allow_after_open_command() {
-        unimplemented!("TODO");
-    }
-
-    #[test]
-    fn strike_command_is_not_allowed_after_open_command() {
-        // TODO check enunciado
-        let mut game = Game::new();
-        game.roll(10).unwrap();
-        game.roll(5).unwrap();
-        assert_eq!(2, game.frames.len());
-    }
-
-    #[test]
+    // TODO move this test to integration test outside
     fn after_sparse_next_roll_score_is_the_number_of_pins_knocked_down_plus_the_next_roll() {
         let mut game = Game::new();
         game.roll(5).unwrap();
@@ -175,6 +228,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn table_test_driven() {
         unimplemented!("TODO")
     }
