@@ -15,20 +15,27 @@ impl Cell {
     }
 
     pub fn evolve(&self, neighbours: u8) -> Cell {
-        match self.status {
-            Status::Alive => {
-                if neighbours < 2 || neighbours > 3 {
-                    return Cell::new(Status::Dead);
-                }
-                return Cell::new(Status::Alive);
-            }
-            Status::Dead => {
-                if neighbours == 3 {
-                    return Cell::new(Status::Alive);
-                }
-                return Cell::new(Status::Dead);
-            }
+        let next_status = match self.status {
+            Status::Alive => status_for_alive_cell(neighbours),
+            Status::Dead => status_for_dead_cell(neighbours),
         };
+        Cell::new(next_status)
+    }
+}
+
+fn status_for_alive_cell(neighbours: u8) -> Status {
+    if (2..=3).contains(&neighbours) {
+        Status::Alive
+    } else {
+        Status::Dead
+    }
+}
+
+fn status_for_dead_cell(neighbours: u8) -> Status {
+    if neighbours == 3 {
+        Status::Alive
+    } else {
+        Status::Dead
     }
 }
 

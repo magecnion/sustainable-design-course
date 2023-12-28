@@ -6,35 +6,35 @@ use std::collections::HashMap;
 pub struct Position(pub i32, pub i32);
 
 impl Position {
-    fn get_right(&self) -> Position {
+    fn right(&self) -> Position {
         Position(self.0 + 1, self.1)
     }
 
-    fn get_right_top(&self) -> Position {
+    fn right_top(&self) -> Position {
         Position(self.0 + 1, self.1 + 1)
     }
 
-    fn get_right_bottom(&self) -> Position {
+    fn right_bottom(&self) -> Position {
         Position(self.0 + 1, self.1 - 1)
     }
 
-    fn get_left(&self) -> Position {
+    fn left(&self) -> Position {
         Position(self.0 - 1, self.1)
     }
 
-    fn get_left_top(&self) -> Position {
+    fn left_top(&self) -> Position {
         Position(self.0 - 1, self.1 + 1)
     }
 
-    fn get_left_bottom(&self) -> Position {
+    fn left_bottom(&self) -> Position {
         Position(self.0 - 1, self.1 - 1)
     }
 
-    fn get_top(&self) -> Position {
+    fn top(&self) -> Position {
         Position(self.0, self.1 + 1)
     }
 
-    fn get_bottom(&self) -> Position {
+    fn bottom(&self) -> Position {
         Position(self.0, self.1 - 1)
     }
 }
@@ -90,25 +90,21 @@ impl World {
         }
 
         let positions = [
-            position.get_right(),
-            position.get_right_top(),
-            position.get_right_bottom(),
-            position.get_left(),
-            position.get_left_top(),
-            position.get_left_bottom(),
-            position.get_top(),
-            position.get_bottom(),
+            position.right(),
+            position.right_top(),
+            position.right_bottom(),
+            position.left(),
+            position.left_top(),
+            position.left_bottom(),
+            position.top(),
+            position.bottom(),
         ];
 
-        let mut alive_neighbours: u8 = 0;
-
-        for pos in positions.iter() {
-            if let Some(cell) = self.cells.get(pos) {
-                if cell.status == cell::Status::Alive {
-                    alive_neighbours += 1;
-                }
-            }
-        }
+        let alive_neighbours = positions
+            .iter()
+            .filter_map(|pos| self.cells.get(pos))
+            .filter(|cell| cell.status == cell::Status::Alive)
+            .count() as u8;
 
         alive_neighbours
     }
@@ -122,27 +118,27 @@ mod tests {
     const A: cell::Status = cell::Status::Alive;
 
     #[test]
-    fn given_a_position_get_right() {
+    fn given_a_position_right() {
         let position = Position(1, 2);
-        assert_eq!(position.get_right(), Position(2, 2));
+        assert_eq!(position.right(), Position(2, 2));
     }
 
     #[test]
-    fn given_a_position_get_left() {
+    fn given_a_position_left() {
         let position = Position(1, 2);
-        assert_eq!(position.get_left(), Position(0, 2));
+        assert_eq!(position.left(), Position(0, 2));
     }
 
     #[test]
-    fn given_a_position_get_top() {
+    fn given_a_position_top() {
         let position = Position(1, 2);
-        assert_eq!(position.get_top(), Position(1, 3));
+        assert_eq!(position.top(), Position(1, 3));
     }
 
     #[test]
-    fn given_a_position_get_bottom() {
+    fn given_a_position_bottom() {
         let position = Position(1, 2);
-        assert_eq!(position.get_bottom(), Position(1, 1));
+        assert_eq!(position.bottom(), Position(1, 1));
     }
 
     #[test]
