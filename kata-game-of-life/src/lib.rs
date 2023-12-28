@@ -70,6 +70,7 @@ impl Position {
 #[derive(Debug, PartialEq)]
 struct World {
     cells: HashMap<Position, cell::Cell>,
+    generation_count: u32,
 }
 
 impl World {
@@ -81,7 +82,10 @@ impl World {
         for (position, cell) in initial_state {
             cells.insert(position, cell);
         }
-        Ok(World { cells })
+        Ok(World {
+            cells,
+            generation_count: 0,
+        })
     }
 
     fn calculate_next_generation(&self) -> Result<World, &'static str> {
@@ -94,6 +98,7 @@ impl World {
 
         Ok(World {
             cells: next_generation,
+            generation_count: self.generation_count + 1,
         })
     }
 
@@ -200,7 +205,8 @@ mod tests {
             cell::Cell::new(cell::Status::Alive),
         );
         let world = World::new(initial_state).unwrap();
-        world.calculate_next_generation().unwrap();
+        let world = world.calculate_next_generation().unwrap();
+        assert_eq!(world.generation_count, 1);
     }
 
     fn create_inital_state_all_alive(state: Vec<(i32, i32)>) -> HashMap<Position, cell::Cell> {
@@ -365,7 +371,10 @@ mod tests {
         let initial_state =
             create_initial_state_from_matrix(vec![vec![D, D, D], vec![A, A, A], vec![D, D, D]]);
         let new_world = World::new(initial_state).unwrap();
-        assert_eq!(world.calculate_next_generation().unwrap(), new_world);
+        assert_eq!(
+            world.calculate_next_generation().unwrap().cells,
+            new_world.cells
+        );
     }
 
     #[test]
@@ -385,7 +394,8 @@ mod tests {
             .unwrap()
             .calculate_next_generation()
             .unwrap();
-        assert_eq!(initial_world, current_world);
+        assert_eq!(initial_world.cells, current_world.cells);
+        assert_eq!(current_world.generation_count, 3);
     }
 
     #[test]
@@ -404,6 +414,7 @@ mod tests {
             .unwrap()
             .calculate_next_generation()
             .unwrap();
-        assert_eq!(initial_world, current_world);
+        assert_eq!(initial_world.cells, current_world.cells);
+        assert_eq!(current_world.generation_count, 2);
     }
 }
