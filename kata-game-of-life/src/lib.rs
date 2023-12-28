@@ -89,11 +89,15 @@ impl World {
     }
 
     fn calculate_next_generation(&mut self) -> Result<(), &'static str> {
+        // for
         self.number_of_generations += 1;
         Ok(())
     }
 
     fn calculate_alive_neighbours(&self, position: Position) -> u8 {
+        if self.cells.get(&position).is_none() {
+            return 0;
+        }
         let mut alive_neightbours: u8 = 0;
         if let Some(cell) = self.cells.get(&position.get_right()) {
             if cell.status == cell::Status::Alive {
@@ -264,6 +268,30 @@ mod tests {
         // A A A
         assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 6);
         assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 2);
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 3);
+    }
+
+    #[test]
+    fn given_a_2d_world_with_empty_spots_i_can_calculate_alive_neighbours() {
+        // A A A
+        // A A X
+        // A A X
+        let initial_state =
+            create_inital_state(vec![(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1)]);
+        let mut world = World::new(initial_state).unwrap();
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 6);
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 0);
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 4);
+
+        // after killing two neighbours the number of alive neighbours change
+        world
+            .cells
+            .insert(Position { x: 1, y: 0 }, cell::Cell::new(cell::Status::Dead));
+        // A A A
+        // D A X
+        // A A X
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 5);
+        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 0);
         assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 3);
     }
 }
