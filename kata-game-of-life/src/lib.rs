@@ -201,20 +201,28 @@ mod tests {
         world.calculate_next_generation().unwrap();
     }
 
-    fn create_inital_state(
-        state: Vec<(i32, i32)>,
-        cells_status: &cell::Status,
-    ) -> HashMap<Position, cell::Cell> {
+    fn create_inital_state_all_alive(state: Vec<(i32, i32)>) -> HashMap<Position, cell::Cell> {
         let mut initial_state = HashMap::new();
         for (x, y) in state {
-            initial_state.insert(Position { x, y }, cell::Cell::new(*cells_status));
+            initial_state.insert(Position { x, y }, cell::Cell::new(cell::Status::Alive));
+        }
+        initial_state
+    }
+
+    // TODO create helper fn like receives matrix
+    fn create_inital_state(
+        state: HashMap<(i32, i32), cell::Status>,
+    ) -> HashMap<Position, cell::Cell> {
+        let mut initial_state = HashMap::new();
+        for ((x, y), cell_status) in state {
+            initial_state.insert(Position { x, y }, cell::Cell::new(cell_status));
         }
         initial_state
     }
 
     #[test]
     fn given_a_world_i_can_calculate_alive_neighbours_for_a_dead_cell() {
-        let initial_state = create_inital_state(vec![(0, 0), (0, 1)], &cell::Status::Alive);
+        let initial_state = create_inital_state_all_alive(vec![(0, 0), (0, 1)]);
         let mut world = World::new(initial_state).unwrap();
         world
             .cells
@@ -227,7 +235,7 @@ mod tests {
 
     #[test]
     fn given_a_1d_world_i_can_calculate_alive_neighbours() {
-        let initial_state = create_inital_state(vec![(0, 0), (0, 1), (0, 2)], &cell::Status::Alive);
+        let initial_state = create_inital_state_all_alive(vec![(0, 0), (0, 1), (0, 2)]);
         let mut world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 0, y: 0 }),
@@ -253,20 +261,17 @@ mod tests {
         // A A A
         // A A A
         // A A A
-        let initial_state = create_inital_state(
-            vec![
-                (0, 0),
-                (0, 1),
-                (0, 2),
-                (1, 0),
-                (1, 1),
-                (1, 2),
-                (2, 0),
-                (2, 1),
-                (2, 2),
-            ],
-            &cell::Status::Alive,
-        );
+        let initial_state = create_inital_state_all_alive(vec![
+            (0, 0),
+            (0, 1),
+            (0, 2),
+            (1, 0),
+            (1, 1),
+            (1, 2),
+            (2, 0),
+            (2, 1),
+            (2, 2),
+        ]);
         let mut world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
@@ -310,10 +315,15 @@ mod tests {
         // A A A
         // A A X
         // A A X
-        let initial_state = create_inital_state(
-            vec![(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1)],
-            &cell::Status::Alive,
-        );
+        let initial_state = create_inital_state_all_alive(vec![
+            (0, 0),
+            (0, 1),
+            (0, 2),
+            (1, 0),
+            (1, 1),
+            (2, 0),
+            (2, 1),
+        ]);
         let mut world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
@@ -356,22 +366,41 @@ mod tests {
         // D A D
         let initial_state = create_inital_state(
             vec![
-                (0, 0),
-                (0, 1),
-                (0, 2),
-                (1, 0),
-                (1, 1),
-                (1, 2),
-                (2, 0),
-                (2, 1),
-                (2, 2),
-            ],
-            &cell::Status::Dead,
+                ((0, 0), cell::Status::Dead),
+                ((0, 1), cell::Status::Alive),
+                ((0, 2), cell::Status::Dead),
+                ((1, 0), cell::Status::Dead),
+                ((1, 1), cell::Status::Alive),
+                ((1, 2), cell::Status::Dead),
+                ((2, 0), cell::Status::Dead),
+                ((2, 1), cell::Status::Alive),
+                ((2, 2), cell::Status::Dead),
+            ]
+            .into_iter()
+            .collect(),
         );
-        // TODO improve helper fns
 
         let world = World::new(initial_state).unwrap();
-        let new_world = world.calculate_next_generation().unwrap();
-        assert_eq!(world, new_world);
+
+        // D D D
+        // A A A
+        // D D D
+        let new_world = World::new(create_inital_state(
+            vec![
+                ((0, 0), cell::Status::Dead),
+                ((0, 1), cell::Status::Dead),
+                ((0, 2), cell::Status::Dead),
+                ((1, 0), cell::Status::Alive),
+                ((1, 1), cell::Status::Alive),
+                ((1, 2), cell::Status::Alive),
+                ((2, 0), cell::Status::Dead),
+                ((2, 1), cell::Status::Dead),
+                ((2, 2), cell::Status::Dead),
+            ]
+            .into_iter()
+            .collect(),
+        ))
+        .unwrap();
+        assert_eq!(world.calculate_next_generation().unwrap(), new_world);
     }
 }
