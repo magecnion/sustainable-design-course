@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 mod cell;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
 
 struct Position {
     x: i32,
@@ -70,7 +70,6 @@ impl Position {
 #[derive(Debug, PartialEq)]
 struct World {
     cells: HashMap<Position, cell::Cell>,
-    number_of_generations: u32,
 }
 
 impl World {
@@ -82,19 +81,23 @@ impl World {
         for (position, cell) in initial_state {
             cells.insert(position, cell);
         }
+        Ok(World { cells })
+    }
+
+    fn calculate_next_generation(&self) -> Result<World, &'static str> {
+        let mut next_generation = HashMap::new();
+        for (position, cell) in &self.cells {
+            let alive_neighbours = self.calculate_alive_neighbours(&position);
+            let cell = cell.evolve(alive_neighbours);
+            next_generation.insert(*position, cell);
+        }
+
         Ok(World {
-            cells,
-            number_of_generations: 0,
+            cells: next_generation,
         })
     }
 
-    fn calculate_next_generation(&mut self) -> Result<(), &'static str> {
-        // for
-        self.number_of_generations += 1;
-        Ok(())
-    }
-
-    fn calculate_alive_neighbours(&self, position: Position) -> u8 {
+    fn calculate_alive_neighbours(&self, position: &Position) -> u8 {
         if self.cells.get(&position).is_none() {
             return 0;
         }
@@ -185,7 +188,6 @@ mod tests {
         );
         let world = World::new(initial_state).unwrap();
         assert_eq!(world.cells.len(), 1);
-        assert_eq!(world.number_of_generations, 0)
     }
 
     #[test]
@@ -197,42 +199,53 @@ mod tests {
         );
         let mut world = World::new(initial_state).unwrap();
         world.calculate_next_generation().unwrap();
-        assert_eq!(world.number_of_generations, 1)
     }
 
-    fn create_inital_state(state: Vec<(i32, i32)>) -> HashMap<Position, cell::Cell> {
+    fn create_inital_state(
+        state: Vec<(i32, i32)>,
+        cells_status: &cell::Status,
+    ) -> HashMap<Position, cell::Cell> {
         let mut initial_state = HashMap::new();
         for (x, y) in state {
-            initial_state.insert(
-                Position { x: x, y: y },
-                cell::Cell::new(cell::Status::Alive),
-            );
+            initial_state.insert(Position { x, y }, cell::Cell::new(*cells_status));
         }
         initial_state
     }
 
     #[test]
     fn given_a_world_i_can_calculate_alive_neighbours_for_a_dead_cell() {
-        let initial_state = create_inital_state(vec![(0, 0), (0, 1)]);
+        let initial_state = create_inital_state(vec![(0, 0), (0, 1)], &cell::Status::Alive);
         let mut world = World::new(initial_state).unwrap();
         world
             .cells
             .insert(Position { x: 0, y: 0 }, cell::Cell::new(cell::Status::Dead));
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 0 }), 1);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 0 }),
+            1
+        );
     }
 
     #[test]
     fn given_a_1d_world_i_can_calculate_alive_neighbours() {
-        let initial_state = create_inital_state(vec![(0, 0), (0, 1), (0, 2)]);
+        let initial_state = create_inital_state(vec![(0, 0), (0, 1), (0, 2)], &cell::Status::Alive);
         let mut world = World::new(initial_state).unwrap();
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 0 }), 1);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 2);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 0 }),
+            1
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            2
+        );
 
         // after killing one neighbour the number of alive neighbours is 1 again
         world
             .cells
             .insert(Position { x: 0, y: 0 }, cell::Cell::new(cell::Status::Dead));
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 1);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            1
+        );
     }
 
     #[test]
@@ -240,21 +253,33 @@ mod tests {
         // A A A
         // A A A
         // A A A
-        let initial_state = create_inital_state(vec![
-            (0, 0),
-            (0, 1),
-            (0, 2),
-            (1, 0),
-            (1, 1),
-            (1, 2),
-            (2, 0),
-            (2, 1),
-            (2, 2),
-        ]);
+        let initial_state = create_inital_state(
+            vec![
+                (0, 0),
+                (0, 1),
+                (0, 2),
+                (1, 0),
+                (1, 1),
+                (1, 2),
+                (2, 0),
+                (2, 1),
+                (2, 2),
+            ],
+            &cell::Status::Alive,
+        );
         let mut world = World::new(initial_state).unwrap();
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 8);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 3);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 5);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
+            8
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 2, y: 2 }),
+            3
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            5
+        );
 
         // after killing two neighbours the number of alive neighbours change
         world
@@ -266,9 +291,18 @@ mod tests {
         // A A A
         // D A D
         // A A A
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 6);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 2);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 3);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
+            6
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 2, y: 2 }),
+            2
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            3
+        );
     }
 
     #[test]
@@ -276,12 +310,23 @@ mod tests {
         // A A A
         // A A X
         // A A X
-        let initial_state =
-            create_inital_state(vec![(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1)]);
+        let initial_state = create_inital_state(
+            vec![(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1)],
+            &cell::Status::Alive,
+        );
         let mut world = World::new(initial_state).unwrap();
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 6);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 0);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 4);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
+            6
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 2, y: 2 }),
+            0
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            4
+        );
 
         // after killing two neighbours the number of alive neighbours change
         world
@@ -290,8 +335,43 @@ mod tests {
         // A A A
         // D A X
         // A A X
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 1, y: 1 }), 5);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 2, y: 2 }), 0);
-        assert_eq!(world.calculate_alive_neighbours(Position { x: 0, y: 1 }), 3);
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
+            5
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 2, y: 2 }),
+            0
+        );
+        assert_eq!(
+            world.calculate_alive_neighbours(&Position { x: 0, y: 1 }),
+            3
+        );
+    }
+
+    #[test]
+    fn generates_the_next_state_of_the_world() {
+        // D A D
+        // D A D
+        // D A D
+        let initial_state = create_inital_state(
+            vec![
+                (0, 0),
+                (0, 1),
+                (0, 2),
+                (1, 0),
+                (1, 1),
+                (1, 2),
+                (2, 0),
+                (2, 1),
+                (2, 2),
+            ],
+            &cell::Status::Dead,
+        );
+        // TODO improve helper fns
+
+        let world = World::new(initial_state).unwrap();
+        let new_world = world.calculate_next_generation().unwrap();
+        assert_eq!(world, new_world);
     }
 }
