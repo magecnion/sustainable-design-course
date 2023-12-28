@@ -1,114 +1,71 @@
+use std::collections::HashMap;
+
 mod cell;
-// use std::collections::HashMap;
 
-// struct World {
-//     cells: HashMap<Cell, bool>,
-//     iteration: u32,
-// }
+#[derive(PartialEq, Eq, Hash, Debug)]
 
-// impl World {
-//     fn new() -> World {
-//         World {
-//             cells: HashMap::new(),
-//             iteration: 0,
-//         }
-//     }
+struct Position {
+    pos_x: i32,
+    pos_y: i32,
+}
 
-//     fn init(&mut self, initial_state: Vec<Cell>) -> Result<(), &'static str> {
-//         if initial_state.len() == 0 {
-//             return Err("Invalid initial state");
-//         }
-//         for cell in initial_state {
-//             match self.add_cell(cell) {
-//                 Err(e) => {
-//                     println!("Error: {}", e);
-//                     return Err("Invalid initial state");
-//                 }
-//                 _ => (),
-//             }
-//         }
-//         Ok(())
-//     }
+#[derive(Debug, PartialEq)]
+struct World {
+    cells: HashMap<Position, cell::Cell>,
+    number_of_generations: u32,
+}
 
-//     fn add_cell(&mut self, cell: Cell) -> Result<(), &'static str> {
-//         if self.is_there_live(cell.pos_x, cell.pos_y) {
-//             return Err("Cell already exists");
-//         }
-//         self.cells.insert(cell, true);
-//         Ok(())
-//     }
+impl World {
+    fn new(initial_state: HashMap<Position, cell::Cell>) -> Result<World, &'static str> {
+        if initial_state.len() == 0 {
+            return Err("World cannot be empty");
+        }
+        let mut cells = HashMap::new();
+        for (position, cell) in initial_state {
+            cells.insert(position, cell);
+        }
+        Ok(World {
+            cells,
+            number_of_generations: 0,
+        })
+    }
 
-//     fn is_there_live(&self, pos_x: i32, pos_y: i32) -> bool {
-//         self.cells.contains_key(&Cell::new(pos_x, pos_y))
-//     }
+    fn calculate_next_generation(&mut self) -> Result<(), &'static str> {
+        self.number_of_generations += 1;
+        Ok(())
+    }
+}
 
-//     fn iterate(&mut self) -> Result<(), &'static str> {
-//         if self.cells.len() == 0 {
-//             return Err("World not initialized");
-//         }
-//         self.iteration += 1;
-//         Ok(())
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-// #[cfg(test)]
-// mod tests {
-//     use std::f32::consts::E;
+    #[test]
+    fn given_empty_initial_state_raises_error() {
+        assert_eq!(World::new(HashMap::new()), Err("World cannot be empty"));
+    }
 
-//     use super::*;
+    #[test]
+    fn given_an_initial_state_i_can_create_a_world() {
+        let mut initial_state = HashMap::new();
+        initial_state.insert(
+            Position { pos_x: 1, pos_y: 2 },
+            cell::Cell::new(cell::Status::Alive),
+        );
+        let world = World::new(initial_state).unwrap();
+        assert_eq!(world.cells.len(), 1);
+        assert_eq!(world.number_of_generations, 0)
+    }
 
-//     #[test]
-//     fn given_pos_x_and_pos_y_i_can_create_a_cell() {
-//         let cell = Cell::new(1, 2);
-//         assert_eq!(cell.pos_x, 1);
-//         assert_eq!(cell.pos_y, 2);
-//     }
-
-//     #[test]
-//     fn after_create_a_world_initial_state_by_default_is_empty() {
-//         // TODO add helper fn
-//         let world = World::new();
-//         assert_eq!(world.cells.len(), 0);
-//         assert_eq!(world.iteration, 0);
-//     }
-
-//     #[test]
-//     fn world_has_to_be_initalized_before() {
-//         // TODO add helper fn
-//         let mut world = World::new();
-//         assert_eq!(world.iterate(), Err("World not initialized"));
-//     }
-
-//     #[test]
-//     fn when_create_a_world_initial_state_has_to_be_valid() {
-//         let mut world = World::new();
-//         let initial_state = vec![Cell::new(2, 2), Cell::new(2, 2)];
-//         assert_eq!(world.init(initial_state), Err("Invalid initial state"));
-//     }
-
-//     #[test]
-//     fn after_adding_a_cell_to_world_i_can_query_for_that_position() {
-//         let mut world = World::new();
-//         let initial_state = vec![Cell::new(1, 2), Cell::new(2, 2)];
-//         world.init(initial_state).unwrap();
-//         assert_eq!(world.cells.len(), 2);
-//         assert_eq!(world.is_there_live(1, 2), true);
-//         assert_eq!(world.is_there_live(3, 2), false);
-//     }
-
-//     #[test]
-//     fn iterate_over_an_empty_world_is_not_allowed() {
-//         let mut world = World::new();
-//         assert_eq!(world.iterate(), Err("World not initialized"));
-//     }
-
-//     #[test]
-//     fn given_an_initialized_world_i_can_create_a_iteration() {
-//         let mut world = World::new();
-//         let initial_state = vec![Cell::new(1, 2), Cell::new(2, 2)];
-//         world.init(initial_state).unwrap();
-//         assert_eq!(world.iteration, 0);
-//         world.iterate().unwrap();
-//         assert_eq!(world.iteration, 1);
-//     }
-// }
+    #[test]
+    fn given_a_world_i_can_calculate_next_generation() {
+        let mut initial_state = HashMap::new();
+        initial_state.insert(
+            Position { pos_x: 1, pos_y: 2 },
+            cell::Cell::new(cell::Status::Alive),
+        );
+        let mut world = World::new(initial_state).unwrap();
+        world.calculate_next_generation().unwrap();
+        assert_eq!(world.number_of_generations, 1)
+    }
+}

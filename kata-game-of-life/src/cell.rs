@@ -1,15 +1,16 @@
-struct Cell {
+#[derive(Debug, PartialEq)]
+pub struct Cell {
     status: Status,
 }
 
 #[derive(Debug, PartialEq)]
-enum Status {
+pub enum Status {
     Alive,
     Dead,
 }
 
 impl Cell {
-    fn new(status: Status) -> Cell {
+    pub fn new(status: Status) -> Cell {
         Cell { status }
     }
 
