@@ -1,3 +1,3 @@
 # kata-bowling
 
-https://kata-log.rocks/bowling-game-kata
+https://codingdojo.org/kata/Bowling/

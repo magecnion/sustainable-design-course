@@ -1,5 +1,6 @@
 [workspace]
 members = [
-    "kata-bowling"
+    "kata-bowling",
+    "kata-game-of-life",
 ]
 

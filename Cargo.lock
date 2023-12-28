@@ -5,3 +5,7 @@ version = 3
 [[package]]
 name = "kata-bowling"
 version = "0.1.0"
+
+[[package]]
+name = "kata-game-of-life"
+version = "0.1.0"
