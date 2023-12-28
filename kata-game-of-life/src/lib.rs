@@ -149,6 +149,8 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const D: cell::Status = cell::Status::Dead;
+    const A: cell::Status = cell::Status::Alive;
 
     #[test]
     fn given_a_position_get_right() {
@@ -197,7 +199,7 @@ mod tests {
             Position { x: 1, y: 2 },
             cell::Cell::new(cell::Status::Alive),
         );
-        let mut world = World::new(initial_state).unwrap();
+        let world = World::new(initial_state).unwrap();
         world.calculate_next_generation().unwrap();
     }
 
@@ -209,13 +211,20 @@ mod tests {
         initial_state
     }
 
-    // TODO create helper fn like receives matrix
-    fn create_inital_state(
-        state: HashMap<(i32, i32), cell::Status>,
+    fn create_initial_state_from_matrix(
+        state: Vec<Vec<cell::Status>>,
     ) -> HashMap<Position, cell::Cell> {
         let mut initial_state = HashMap::new();
-        for ((x, y), cell_status) in state {
-            initial_state.insert(Position { x, y }, cell::Cell::new(cell_status));
+        for (x, row) in state.iter().enumerate() {
+            for (y, cell_status) in row.iter().enumerate() {
+                initial_state.insert(
+                    Position {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    cell::Cell::new(*cell_status),
+                );
+            }
         }
         initial_state
     }
@@ -235,7 +244,7 @@ mod tests {
 
     #[test]
     fn given_a_1d_world_i_can_calculate_alive_neighbours() {
-        let initial_state = create_inital_state_all_alive(vec![(0, 0), (0, 1), (0, 2)]);
+        let initial_state = create_initial_state_from_matrix(vec![vec![A, A, A]]);
         let mut world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 0, y: 0 }),
@@ -261,18 +270,9 @@ mod tests {
         // A A A
         // A A A
         // A A A
-        let initial_state = create_inital_state_all_alive(vec![
-            (0, 0),
-            (0, 1),
-            (0, 2),
-            (1, 0),
-            (1, 1),
-            (1, 2),
-            (2, 0),
-            (2, 1),
-            (2, 2),
-        ]);
-        let mut world = World::new(initial_state).unwrap();
+        let initial_state =
+            create_initial_state_from_matrix(vec![vec![A, A, A], vec![A, A, A], vec![A, A, A]]);
+        let world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
             8
@@ -286,16 +286,12 @@ mod tests {
             5
         );
 
-        // after killing two neighbours the number of alive neighbours change
-        world
-            .cells
-            .insert(Position { x: 1, y: 0 }, cell::Cell::new(cell::Status::Dead));
-        world
-            .cells
-            .insert(Position { x: 1, y: 2 }, cell::Cell::new(cell::Status::Dead));
         // A A A
         // D A D
         // A A A
+        let initial_state =
+            create_initial_state_from_matrix(vec![vec![A, A, A], vec![D, A, D], vec![A, A, A]]);
+        let world = World::new(initial_state).unwrap();
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
             6
@@ -315,16 +311,11 @@ mod tests {
         // A A A
         // A A X
         // A A X
-        let initial_state = create_inital_state_all_alive(vec![
-            (0, 0),
-            (0, 1),
-            (0, 2),
-            (1, 0),
-            (1, 1),
-            (2, 0),
-            (2, 1),
-        ]);
+        let initial_state =
+            create_initial_state_from_matrix(vec![vec![A, A, A], vec![A, A, A], vec![A, A, A]]);
         let mut world = World::new(initial_state).unwrap();
+        world.cells.remove(&Position { x: 2, y: 2 });
+        world.cells.remove(&Position { x: 1, y: 2 });
         assert_eq!(
             world.calculate_alive_neighbours(&Position { x: 1, y: 1 }),
             6
@@ -364,43 +355,55 @@ mod tests {
         // D A D
         // D A D
         // D A D
-        let initial_state = create_inital_state(
-            vec![
-                ((0, 0), cell::Status::Dead),
-                ((0, 1), cell::Status::Alive),
-                ((0, 2), cell::Status::Dead),
-                ((1, 0), cell::Status::Dead),
-                ((1, 1), cell::Status::Alive),
-                ((1, 2), cell::Status::Dead),
-                ((2, 0), cell::Status::Dead),
-                ((2, 1), cell::Status::Alive),
-                ((2, 2), cell::Status::Dead),
-            ]
-            .into_iter()
-            .collect(),
-        );
-
+        let initial_state =
+            create_initial_state_from_matrix(vec![vec![D, A, D], vec![D, A, D], vec![D, A, D]]);
         let world = World::new(initial_state).unwrap();
 
         // D D D
         // A A A
         // D D D
-        let new_world = World::new(create_inital_state(
-            vec![
-                ((0, 0), cell::Status::Dead),
-                ((0, 1), cell::Status::Dead),
-                ((0, 2), cell::Status::Dead),
-                ((1, 0), cell::Status::Alive),
-                ((1, 1), cell::Status::Alive),
-                ((1, 2), cell::Status::Alive),
-                ((2, 0), cell::Status::Dead),
-                ((2, 1), cell::Status::Dead),
-                ((2, 2), cell::Status::Dead),
-            ]
-            .into_iter()
-            .collect(),
-        ))
-        .unwrap();
+        let initial_state =
+            create_initial_state_from_matrix(vec![vec![D, D, D], vec![A, A, A], vec![D, D, D]]);
+        let new_world = World::new(initial_state).unwrap();
         assert_eq!(world.calculate_next_generation().unwrap(), new_world);
+    }
+
+    #[test]
+    fn never_changes_for_a_given_initial_block_pattern() {
+        let initial_state = create_initial_state_from_matrix(vec![
+            vec![A, A, D, D, D],
+            vec![A, A, D, D, D],
+            vec![D, D, D, D, D],
+            vec![D, D, D, D, D],
+            vec![D, D, D, D, D],
+        ]);
+        let initial_world = World::new(initial_state).unwrap();
+        let current_world = initial_world
+            .calculate_next_generation()
+            .unwrap()
+            .calculate_next_generation()
+            .unwrap()
+            .calculate_next_generation()
+            .unwrap();
+        assert_eq!(initial_world, current_world);
+    }
+
+    #[test]
+    fn reestablishes_the_same_state_after_two_generations_when_a_given_oscillator_pattern_is_provided(
+    ) {
+        let initial_state = create_initial_state_from_matrix(vec![
+            vec![D, D, D, D, D],
+            vec![D, D, A, D, D],
+            vec![D, D, A, D, D],
+            vec![D, D, A, D, D],
+            vec![D, D, D, D, D],
+        ]);
+        let initial_world = World::new(initial_state).unwrap();
+        let current_world = initial_world
+            .calculate_next_generation()
+            .unwrap()
+            .calculate_next_generation()
+            .unwrap();
+        assert_eq!(initial_world, current_world);
     }
 }
