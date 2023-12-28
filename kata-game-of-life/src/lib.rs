@@ -157,6 +157,24 @@ mod tests {
     const D: cell::Status = cell::Status::Dead;
     const A: cell::Status = cell::Status::Alive;
 
+    fn create_initial_state_from_matrix(
+        state: Vec<Vec<cell::Status>>,
+    ) -> HashMap<Position, cell::Cell> {
+        let mut initial_state = HashMap::new();
+        for (x, row) in state.iter().enumerate() {
+            for (y, cell_status) in row.iter().enumerate() {
+                initial_state.insert(
+                    Position {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    cell::Cell::new(*cell_status),
+                );
+            }
+        }
+        initial_state
+    }
+
     #[test]
     fn given_a_position_get_right() {
         let position = Position { x: 1, y: 2 };
@@ -209,35 +227,10 @@ mod tests {
         assert_eq!(world.generation_count, 1);
     }
 
-    fn create_inital_state_all_alive(state: Vec<(i32, i32)>) -> HashMap<Position, cell::Cell> {
-        let mut initial_state = HashMap::new();
-        for (x, y) in state {
-            initial_state.insert(Position { x, y }, cell::Cell::new(cell::Status::Alive));
-        }
-        initial_state
-    }
-
-    fn create_initial_state_from_matrix(
-        state: Vec<Vec<cell::Status>>,
-    ) -> HashMap<Position, cell::Cell> {
-        let mut initial_state = HashMap::new();
-        for (x, row) in state.iter().enumerate() {
-            for (y, cell_status) in row.iter().enumerate() {
-                initial_state.insert(
-                    Position {
-                        x: x as i32,
-                        y: y as i32,
-                    },
-                    cell::Cell::new(*cell_status),
-                );
-            }
-        }
-        initial_state
-    }
-
     #[test]
     fn given_a_world_i_can_calculate_alive_neighbours_for_a_dead_cell() {
-        let initial_state = create_inital_state_all_alive(vec![(0, 0), (0, 1)]);
+        let initial_state = create_initial_state_from_matrix(vec![vec![A, A]]);
+
         let mut world = World::new(initial_state).unwrap();
         world
             .cells
