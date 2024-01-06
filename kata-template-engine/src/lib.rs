@@ -50,36 +50,36 @@ mod tests {
 
     #[test]
     fn replace_one_word() {
-        let result = replace("${greet}", ("greet", "Hello"));
-        assert_eq!(result, "Hello");
+        let words_replaced = replace("${greet}", ("greet", "Hello"));
+        assert_eq!(words_replaced, "Hello");
     }
 
     #[test]
     fn replace_with_wrong_format_does_not_replace() {
-        let result = replace("${greet", ("greet", "Hello"));
-        assert_eq!(result, "${greet");
+        let words_replaced = replace("${greet", ("greet", "Hello"));
+        assert_eq!(words_replaced, "${greet");
     }
 
     #[test]
     fn replace_same_word_two_times() {
-        let result = replace("${greet}${greet}", ("greet", "Hello"));
-        assert_eq!(result, "HelloHello");
+        let words_replaced = replace("${greet}${greet}", ("greet", "Hello"));
+        assert_eq!(words_replaced, "HelloHello");
     }
 
     #[test]
     fn given_a_text_apply_template() {
-        let dictionary = r#"{"name": "John", "greet": "Hello"}"#;
+        let json = r#"{"name": "John", "greet": "Hello"}"#;
         let text = "${greet}, ${name}";
-        let result = apply_template(text, dictionary).unwrap();
-        assert_eq!(result, "Hello, John");
+        let parsed_template = apply_template(text, json).unwrap();
+        assert_eq!(parsed_template, "Hello, John");
     }
 
     #[test]
     fn given_a_text_apply_template_when_not_all_variables_exist() {
-        let dictionary = r#"{"greet": "Hello"}"#;
+        let json = r#"{"greet": "Hello"}"#;
         let text = "${greet}, ${name}";
-        let result = apply_template(text, dictionary).unwrap();
-        assert_eq!(result, "Hello, ${name}");
+        let parsed_template = apply_template(text, json).unwrap();
+        assert_eq!(parsed_template, "Hello, ${name}");
     }
 
     #[test]
@@ -93,9 +93,9 @@ mod tests {
     #[test]
     fn given_an_invalid_json_string_it_raises_an_error() {
         let json = r#"{"name" "John", "greet": "Hello"}"#;
-        let result = build_dictionary(json);
+        let dictionary = build_dictionary(json);
         assert_eq!(
-            result.unwrap_err().to_string(),
+            dictionary.unwrap_err().to_string(),
             "JSON error: expected `:` at line 1 column 9"
         );
     }
@@ -103,9 +103,9 @@ mod tests {
     #[test]
     fn given_an_empty_json_it_raises_an_error() {
         let json = r#"{}"#;
-        let result = apply_template("a", json);
+        let parsed_template = apply_template("a", json);
         assert_eq!(
-            result.unwrap_err().to_string(),
+            parsed_template.unwrap_err().to_string(),
             "Empty dictionary is not allowed"
         );
     }
@@ -113,7 +113,18 @@ mod tests {
     #[test]
     fn given_an_empty_file_it_raises_an_error() {
         let json = r#"{"name": "John", "greet": "Hello"}"#;
-        let result = apply_template("", json);
-        assert_eq!(result.unwrap_err().to_string(), "Empty file is not allowed");
+        let parsed_template = apply_template("", json);
+        assert_eq!(
+            parsed_template.unwrap_err().to_string(),
+            "Empty file is not allowed"
+        );
+    }
+
+    #[test]
+    fn given_a_file_where_there_are_no_variables_that_matches_it_returns_the_same_text_and_warnings(
+    ) {
+        let json = r#"{"name": "John", "greet": "Hello"}"#;
+        let parsed_template = apply_template("Hello, ${surname}", json).unwrap();
+        assert_eq!(parsed_template, "Hello, John");
     }
 }
