@@ -1,20 +1,33 @@
 use std::collections::HashMap;
 use std::fmt;
 
-pub fn apply_template(text: &str, variables: &str) -> Result<String, TemplateError> {
-    if text.is_empty() {
+pub fn parse_template_from_json(
+    template_text: &str,
+    json_variables: &str,
+) -> Result<String, TemplateError> {
+    if template_text.is_empty() {
         return Err(TemplateError::EmptyFile);
     }
-    let dictionary = build_dictionary(variables)?;
-    let mut result = text.to_string();
-    for (key, value) in dictionary {
-        result = replace(&result, (&key, &value));
-    }
-    Ok(result)
+    let dictionary = build_dictionary(json_variables)?;
+    parse_template(template_text, dictionary)
 }
 
-fn replace(text: &str, word_and_value: (&str, &str)) -> String {
-    text.replace(&format!("${{{}}}", word_and_value.0), word_and_value.1)
+pub fn parse_template(
+    template_text: &str,
+    variables: HashMap<String, String>,
+) -> Result<String, TemplateError> {
+    if template_text.is_empty() {
+        return Err(TemplateError::EmptyFile);
+    }
+    let mut parsed_template = template_text.to_string();
+    for (variable, value) in variables {
+        parsed_template = replace(&parsed_template, (&variable, &value));
+    }
+    Ok(parsed_template)
+}
+
+fn replace(template_text: &str, word_and_value: (&str, &str)) -> String {
+    template_text.replace(&format!("${{{}}}", word_and_value.0), word_and_value.1)
 }
 
 type Dictionary = HashMap<String, String>;
@@ -47,6 +60,24 @@ impl fmt::Display for TemplateError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replace_one_word() {
+        let words_replaced = replace("${greet}", ("greet", "Hello"));
+        assert_eq!(words_replaced, "Hello");
+    }
+
+    #[test]
+    fn replace_with_wrong_format_does_not_replace() {
+        let words_replaced = replace("${greet", ("greet", "Hello"));
+        assert_eq!(words_replaced, "${greet");
+    }
+
+    #[test]
+    fn replace_same_word_two_times() {
+        let words_replaced = replace("${greet}${greet}", ("greet", "Hello"));
+        assert_eq!(words_replaced, "HelloHello");
+    }
 
     #[test]
     fn given_a_valid_json_string_i_can_create_a_dictionary() {
