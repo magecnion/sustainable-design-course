@@ -2,6 +2,23 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::fmt;
 
+/// Parses a template from a JSON string.
+///
+/// This function takes a template text and a JSON string of variables. It replaces placeholders in the form of `${variable}` in the template text with the corresponding values from the JSON string. If a placeholder in the template text does not have a corresponding variable in the JSON string, it is left as is.
+///
+/// # Arguments
+///
+/// * `template_text` - A string slice that holds the template text.
+/// * `json_variables` - A string slice that holds the JSON string of variables.
+///
+/// # Returns
+///
+/// This function returns a `Result` with a `ParsedTemplate` if the parsing is successful, or a `TemplateError` if there is an error.
+///
+/// # Errors
+///
+/// This function returns an error if the template text is empty, the JSON string is not a valid JSON object, or a variable in the JSON string is not a string.
+
 pub fn parse_template_from_json(
     template_text: &str,
     json_variables: &str,
@@ -11,26 +28,22 @@ pub fn parse_template_from_json(
     parse_template(template_text, dictionary)
 }
 
-fn check_dictionary_not_empty(dictionary: &HashMap<String, String>) -> Result<(), TemplateError> {
-    if dictionary.is_empty() {
-        return Err(TemplateError::EmptyDictionary);
-    }
-    Ok(())
-}
-
-fn check_text_not_empty(text: &str) -> Result<(), TemplateError> {
-    if text.is_empty() {
-        return Err(TemplateError::EmptyFile);
-    }
-    Ok(())
-}
-
-#[derive(Debug)]
-pub struct ParsedTemplate {
-    pub text: String,
-    pub warnings: Vec<String>,
-}
-
+/// Parses a template using a dictionary of variables.
+///
+/// This function takes a template text and a dictionary of variables. It replaces placeholders in the form of `${variable}` in the template text with the corresponding values from the dictionary. If a placeholder in the template text does not have a corresponding variable in the dictionary, a warning is generated.
+///
+/// # Arguments
+///
+/// * `template_text` - A string slice that holds the template text.
+/// * `variables` - A `HashMap` where the keys are the variable names and the values are the variable values.
+///
+/// # Returns
+///
+/// This function returns a `Result` with a `ParsedTemplate` if the parsing is successful, or a `TemplateError` if there is an error. The `ParsedTemplate` contains the parsed template text and a list of warnings.
+///
+/// # Errors
+///
+/// This function returns an error if the template text or the dictionary is empty.
 pub fn parse_template(
     template_text: &str,
     variables: HashMap<String, String>,
@@ -54,14 +67,31 @@ pub fn parse_template(
     })
 }
 
-fn get_warnings_for_not_replaced_variables(parsed_template_text: String) -> Vec<String> {
-    let mut warnings = Vec::new();
-    let re = Regex::new(r"\$\{(\w+)\}").unwrap();
-    for captures in re.captures_iter(&parsed_template_text) {
-        let word = &captures[1];
-        warnings.push(format!("Variable {} not replaced", word));
+#[derive(Debug)]
+pub struct ParsedTemplate {
+    pub text: String,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum TemplateError {
+    JsonError(serde_json::Error),
+    EmptyDictionary,
+    EmptyFile,
+}
+
+fn check_dictionary_not_empty(dictionary: &HashMap<String, String>) -> Result<(), TemplateError> {
+    if dictionary.is_empty() {
+        return Err(TemplateError::EmptyDictionary);
     }
-    warnings
+    Ok(())
+}
+
+fn check_text_not_empty(text: &str) -> Result<(), TemplateError> {
+    if text.is_empty() {
+        return Err(TemplateError::EmptyFile);
+    }
+    Ok(())
 }
 
 type Dictionary = HashMap<String, String>;
@@ -72,11 +102,14 @@ fn build_dictionary(json: &str) -> Result<Dictionary, TemplateError> {
     Ok(dicttionary)
 }
 
-#[derive(Debug)]
-pub enum TemplateError {
-    JsonError(serde_json::Error),
-    EmptyDictionary,
-    EmptyFile,
+fn get_warnings_for_not_replaced_variables(parsed_template_text: String) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let re = Regex::new(r"\$\{(\w+)\}").unwrap();
+    for captures in re.captures_iter(&parsed_template_text) {
+        let word = &captures[1];
+        warnings.push(format!("Variable {} not replaced", word));
+    }
+    warnings
 }
 
 impl fmt::Display for TemplateError {
